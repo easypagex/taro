@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es"> 
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🀧 TAROT.EXE :: Oráculo Rider-Waite-Smith</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#000000;
+    --blue:#0000AA;
+    --green:#00AA00;
+    --cyan:#00AAAA;
+    --red:#AA0000;
+    --magenta:#AA00AA;
+    --brown:#AA5500;
+    --lgray:#AAAAAA;
+    --dgray:#555555;
+    --lblue:#5555FF;
+    --lgreen:#55FF55;
+    --lcyan:#55FFFF;
+    --lred:#FF5555;
+    --lmagenta:#FF55FF;
+    --yellow:#FFFF55;
+    --white:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;
+    background:var(--black);
+    color:var(--lgray);
+    font-family:'VT323', monospace;
+    min-height:100%;
+    overflow-x:hidden;
+  }
+  body{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px 12px 60px;
+  }
+  /* CRT scanline overlay */
+  body::before{
+    content:"";
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.035) 0px,
+      rgba(255,255,255,0.035) 1px,
+      transparent 2px,
+      transparent 3px
+    );
+    z-index:999;
+    mix-blend-mode:overlay;
+  }
+  body::after{
+    content:"";
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    pointer-events:none;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+    z-index:998;
+  }
+
+  .crt-flicker{
+    animation:flicker 6s infinite;
+  }
+  @keyframes flicker{
+    0%,96%,100%{opacity:1;}
+    97%{opacity:0.92;}
+    98%{opacity:1;}
+    99%{opacity:0.95;}
+  }
+
+  .boxdraw{
+    white-space:pre;
+    line-height:1.15;
+    font-family:'VT323', monospace;
+  }
+
+  header{
+    text-align:center;
+    margin-bottom:6px;
+    max-width:640px;
+    width:100%;
+  }
+  .title-box{
+    color:var(--lcyan);
+    font-size:clamp(14px, 3vw, 22px);
+    letter-spacing:1px;
+  }
+  .subtitle{
+    color:var(--green);
+    font-size:clamp(12px, 2.4vw, 16px);
+    letter-spacing:3px;
+    margin-top:4px;
+  }
+  .cursor{
+    display:inline-block;
+    background:var(--lgreen);
+    width:0.6em;
+    height:1em;
+    vertical-align:middle;
+    animation:blink 1s steps(1) infinite;
+  }
+  @keyframes blink{
+    0%,49%{opacity:1;}
+    50%,100%{opacity:0;}
+  }
+
+  .status-line{
+    color:var(--yellow);
+    font-size:clamp(13px, 2.6vw, 18px);
+    margin:14px 0 20px;
+    text-align:center;
+    min-height:1.3em;
+    letter-spacing:1px;
+  }
+
+  .stage{
+    perspective:1600px;
+    width:min(88vw, 300px);
+    margin:0 auto;
+  }
+  .card{
+    position:relative;
+    width:100%;
+    aspect-ratio: 300 / 520;
+    cursor:pointer;
+    transform-style:preserve-3d;
+    transition:transform 0.7s cubic-bezier(.4,.2,.2,1);
+    outline:none;
+  }
+  .card:focus-visible .card-face.back{
+    box-shadow:0 0 0 3px var(--lcyan);
+  }
+  .card.flipped{
+    transform:rotateY(180deg);
+  }
+  .card-face{
+    position:absolute;
+    inset:0;
+    backface-visibility:hidden;
+    border-radius:4px;
+    overflow:hidden;
+    background:#000;
+  }
+  .card-face.back{
+    transform:rotateY(0deg);
+  }
+  .card-face.front{
+    transform:rotateY(180deg);
+  }
+  .card-face svg{
+    width:100%;
+    height:100%;
+    display:block;
+  }
+
+  .draw-hint{
+    text-align:center;
+    color:var(--lgray);
+    font-size:clamp(12px,2.3vw,15px);
+    margin-top:14px;
+    letter-spacing:1px;
+  }
+  .draw-hint .blinktxt{
+    color:var(--lgreen);
+    animation:blink 1.1s steps(1) infinite;
+  }
+
+  .meaning-wrap{
+    width:min(90vw, 620px);
+    margin-top:26px;
+    display:none;
+  }
+  .meaning-wrap.show{
+    display:block;
+  }
+  .meaning-box{
+    border:2px solid var(--lgray);
+    padding:16px 18px;
+    background:rgba(0,10,0,0.4);
+    position:relative;
+  }
+  .meaning-box .corner{
+    position:absolute;
+    color:var(--lgray);
+    font-size:20px;
+    line-height:1;
+  }
+  .corner.tl{top:-12px;left:-10px;}
+  .corner.tr{top:-12px;right:-10px;}
+  .corner.bl{bottom:-12px;left:-10px;}
+  .corner.br{bottom:-12px;right:-10px;}
+
+  .meaning-title{
+    color:var(--lyellow, var(--yellow));
+    font-size:clamp(18px,3.4vw,26px);
+    letter-spacing:2px;
+    margin-bottom:4px;
+  }
+  .meaning-sub{
+    color:var(--cyan);
+    font-size:clamp(12px,2.2vw,14px);
+    margin-bottom:12px;
+    letter-spacing:1px;
+  }
+  .meaning-text{
+    color:var(--white);
+    font-size:clamp(15px,2.8vw,19px);
+    line-height:1.4;
+    min-height:3.6em;
+  }
+  .meaning-text .caret{
+    display:inline-block;
+    background:var(--white);
+    width:0.55em;
+    height:1em;
+    vertical-align:middle;
+    animation:blink 0.8s steps(1) infinite;
+  }
+
+  .footer-actions{
+    margin-top:38px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+  }
+  .redraw-btn{
+    background:none;
+    border:2px solid var(--lmagenta);
+    color:var(--lmagenta);
+    font-family:'VT323', monospace;
+    font-size:clamp(14px,2.6vw,18px);
+    padding:8px 18px;
+    cursor:pointer;
+    letter-spacing:2px;
+  }
+  .redraw-btn:hover{
+    background:var(--lmagenta);
+    color:var(--black);
+  }
+  .redraw-btn:disabled{
+    opacity:0.35;
+    cursor:default;
+  }
+  .redraw-btn:disabled:hover{
+    background:none;
+    color:var(--lmagenta);
+  }
+
+  .ep-btn{
+    display:inline-block;
+    margin-top:8px;
+    text-decoration:none;
+    background:none;
+    border:2px solid var(--lgreen);
+    color:var(--lgreen);
+    font-family:'VT323', monospace;
+    font-size:clamp(16px,3vw,20px);
+    padding:10px 26px;
+    letter-spacing:2px;
+    transition:background 0.15s, color 0.15s;
+  }
+  .ep-btn:hover{
+    background:var(--lgreen);
+    color:var(--black);
+  }
+  .ep-caption{
+    color:var(--dgray);
+    font-size:12px;
+    margin-top:6px;
+    letter-spacing:1px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .card, .cursor, .blinktxt, .caret{
+      transition:none !important;
+      animation:none !important;
+    }
+  }
+</style>
+</head>
+<body class="crt-flicker">
+
+<header>
+<div class="boxdraw title-box">╔══════════════════════════════════════╗
+║ &nbsp;T A R O T . E X E&nbsp;&nbsp;&nbsp;v1.0&nbsp;&nbsp;&nbsp;78K&nbsp;RAM&nbsp;OK ║
+╚══════════════════════════════════════╝</div>
+<div class="subtitle">OR&Aacute;CULO RIDER &middot; WAITE &middot; SMITH<span class="cursor"></span></div>
+</header>
+
+<div class="status-line" id="statusLine">C:\TAROT&gt; ESPERANDO ENTRADA DEL CONSULTANTE_</div>
+
+<div class="stage">
+  <div class="card" id="cardEl" tabindex="0" role="button" aria-label="Haz clic para sacar una carta de tarot">
+    <div class="card-face back" id="cardBack"></div>
+    <div class="card-face front" id="cardFront"></div>
+  </div>
+</div>
+
+<div class="draw-hint" id="drawHint">&gt;&gt; HAZ CLIC EN LA CARTA PARA SACARLA <span class="blinktxt">&#9608;</span></div>
+
+<div class="meaning-wrap" id="meaningWrap">
+  <div class="meaning-box">
+    <span class="corner tl">+</span><span class="corner tr">+</span>
+    <span class="corner bl">+</span><span class="corner br">+</span>
+    <div class="meaning-title" id="meaningTitle">---</div>
+    <div class="meaning-sub" id="meaningSub">---</div>
+    <div class="meaning-text" id="meaningText"></div>
+  </div>
+</div>
+
+<div class="footer-actions">
+  <button class="redraw-btn" id="redrawBtn" disabled>[ SACAR OTRA CARTA ]</button>
+  <a class="ep-btn" href="https://easypagex.github.io" target="_blank" rel="noopener noreferrer">EasyPageX</a>
+    <a class="ep-btn" href="https://easypagex.github.io/taro" target="_blank" rel="noopener noreferrer">ENG</a>
+  <div class="ep-caption">// creado y alojado con EasyPageX</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- Paleta DOS de 16 colores ---------- */
+var DOS = {
+  black:'#000000', blue:'#0000AA', green:'#00AA00', cyan:'#00AAAA',
+  red:'#AA0000', magenta:'#AA00AA', brown:'#AA5500', lgray:'#AAAAAA',
+  dgray:'#555555', lblue:'#5555FF', lgreen:'#55FF55', lcyan:'#55FFFF',
+  lred:'#FF5555', lmagenta:'#FF55FF', yellow:'#FFFF55', white:'#FFFFFF'
+};
+
+/* ---------- Funciones auxiliares SVG genéricas ---------- */
+function frame(color){
+  return '<rect x="6" y="6" width="288" height="508" fill="none" stroke="'+color+'" stroke-width="4"/>' +
+         '<rect x="14" y="14" width="272" height="492" fill="none" stroke="'+color+'" stroke-width="1.5"/>' +
+         '<text x="20" y="26" font-size="16" fill="'+color+'">+</text>' +
+         '<text x="272" y="26" font-size="16" fill="'+color+'">+</text>' +
+         '<text x="20" y="512" font-size="16" fill="'+color+'">+</text>' +
+         '<text x="272" y="512" font-size="16" fill="'+color+'">+</text>';
+}
+
+function person(cx, cy, scale, color, rotate){
+  rotate = rotate || 0;
+  return '<g transform="translate('+cx+','+cy+') rotate('+rotate+') scale('+scale+')">' +
+    '<circle cx="0" cy="-70" r="13" fill="none" stroke="'+color+'" stroke-width="3"/>' +
+    '<path d="M -18,-56 Q 0,-62 18,-56 L 24,8 L -24,8 Z" fill="'+color+'" fill-opacity="0.18" stroke="'+color+'" stroke-width="2.5"/>' +
+    '<line x1="-18" y1="-42" x2="-38" y2="-6" stroke="'+color+'" stroke-width="3"/>' +
+    '<line x1="18" y1="-42" x2="38" y2="-6" stroke="'+color+'" stroke-width="3"/>' +
+    '<line x1="-10" y1="8" x2="-14" y2="40" stroke="'+color+'" stroke-width="3"/>' +
+    '<line x1="10" y1="8" x2="14" y2="40" stroke="'+color+'" stroke-width="3"/>' +
+  '</g>';
+}
+
+function pillar(cx, cy, h, color){
+  return '<g>' +
+    '<rect x="'+(cx-14)+'" y="'+(cy-h)+'" width="28" height="'+h+'" fill="none" stroke="'+color+'" stroke-width="3"/>' +
+    '<rect x="'+(cx-20)+'" y="'+(cy-h-16)+'" width="40" height="16" fill="'+color+'" fill-opacity="0.5" stroke="'+color+'" stroke-width="2"/>' +
+    '<rect x="'+(cx-20)+'" y="'+cy+'" width="40" height="12" fill="'+color+'" fill-opacity="0.5" stroke="'+color+'" stroke-width="2"/>' +
+  '</g>';
+}
+
+function starPath(cx, cy, rOuter, rInner, points, color, fillOpacity){
+  fillOpacity = fillOpacity === undefined ? 0.25 : fillOpacity;
+  var path = '', step = Math.PI/points;
+  for(var i=0;i<2*points;i++){
+    var r = (i%2===0)?rOuter:rInner;
+    var a = i*step - Math.PI/2;
+    var x = cx + r*Math.cos(a);
+    var y = cy + r*Math.sin(a);
+    path += (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+  path += 'Z';
+  return '<path d="'+path+'" fill="'+color+'" fill-opacity="'+fillOpacity+'" stroke="'+color+'" stroke-width="2"/>';
+}
+
+function sunRays(cx, cy, r, color, rays){
+  rays = rays || 12;
+  var lines = '';
+  for(var i=0;i<rays;i++){
+    var a = i*(2*Math.PI/rays);
+    var x1 = cx + (r+4)*Math.cos(a), y1 = cy + (r+4)*Math.sin(a);
+    var x2 = cx + (r+18)*Math.cos(a), y2 = cy + (r+18)*Math.sin(a);
+    lines += '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+color+'" stroke-width="3"/>';
+  }
+  return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+color+'" fill-opacity="0.22" stroke="'+color+'" stroke-width="3"/>' + lines;
+}
+
+function moonShape(cx, cy, r, color){
+  return '<path d="M '+(cx+r*0.5)+','+(cy-r)+' A '+r+','+r+' 0 1 0 '+(cx+r*0.5)+','+(cy+r)+' A '+(r*0.72)+','+(r*0.72)+' 0 1 1 '+(cx+r*0.5)+','+(cy-r)+' Z" fill="'+color+'" fill-opacity="0.3" stroke="'+color+'" stroke-width="2.5"/>';
+}
+
+function wavyLine(x, y, w, color, amp, cycles){
+  amp = amp || 6; cycles = cycles || 4;
+  var d = 'M '+x+','+y+' ', step = w/(cycles*2);
+  for(var i=0;i<cycles*2;i++){
+    var midx = x + step*i + step/2;
+    var cyy = y + (i%2===0? amp : -amp);
+    var endx = x + step*(i+1);
+    d += 'Q '+midx+','+cyy+' '+endx+','+y+' ';
+  }
+  return '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>';
+}
+
+function glyph(cx, cy, size, color, ch, opacity){
+  opacity = opacity===undefined?1:opacity;
+  return '<text x="'+cx+'" y="'+cy+'" font-size="'+size+'" fill="'+color+'" fill-opacity="'+opacity+'" text-anchor="middle" font-family="VT323, monospace">'+ch+'</text>';
+}
+
+function lightning(x, yTop, yBot, color){
+  var pts = [[x,yTop],[x-14,yTop+40],[x+6,yTop+40],[x-18,yBot]];
+  var d = 'M '+pts[0][0]+','+pts[0][1]+' L '+pts[1][0]+','+pts[1][1]+' L '+pts[2][0]+','+pts[2][1]+' L '+pts[3][0]+','+pts[3][1];
+  return '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="4"/>';
+}
+
+/* ---------- Envoltorio del marco de la carta ---------- */
+function renderSVG(card){
+  var top = card.topLabel ? glyph(150, 36, 15, card.color, card.topLabel) : '';
+  var romanLine = card.roman ? glyph(150, 502, 13, DOS.lgray, card.roman) : '';
+  return '<svg viewBox="0 0 300 520" xmlns="http://www.w3.org/2000/svg">' +
+    '<rect x="0" y="0" width="300" height="520" fill="#000"/>' +
+    frame(card.color) +
+    top +
+    card.art +
+    glyph(150, 484, 19, card.color, card.name) +
+    romanLine +
+  '</svg>';
+}
+
+/* =====================================================================
+   ARCANOS MAYORES  (22 cartas)
+   ===================================================================== */
+var MAJORS = [
+{ name:'EL LOCO', roman:'0', color:DOS.yellow, topLabel:'ARCANOS MAYORES',
+  art: sunRays(150,105,24,DOS.yellow,10) +
+       '<line x1="46" y1="378" x2="176" y2="378" stroke="'+DOS.brown+'" stroke-width="4"/>' +
+       '<line x1="176" y1="378" x2="252" y2="428" stroke="'+DOS.brown+'" stroke-width="4"/>' +
+       person(150,300,1.05,DOS.white) +
+       '<line x1="164" y1="270" x2="190" y2="250" stroke="'+DOS.white+'" stroke-width="3"/>' +
+       '<circle cx="192" cy="365" r="8" fill="none" stroke="'+DOS.lgray+'" stroke-width="2"/>' +
+       '<path d="M200,362 L212,354" stroke="'+DOS.lgray+'" stroke-width="2"/>',
+  meaning:'Un salto hacia lo desconocido, sostenido por la confianza y no por un mapa. Nuevos comienzos, inocencia y la disposición a arriesgar la caída por el bien del viaje.'
+},
+{ name:'EL MAGO', roman:'I', color:DOS.lred, topLabel:'ARCANOS MAYORES',
+  art: glyph(150,140,42,DOS.lmagenta,'\u221E') +
+       person(150,300,1.05,DOS.lred) +
+       '<line x1="164" y1="240" x2="192" y2="196" stroke="'+DOS.lred+'" stroke-width="4"/>' +
+       '<line x1="106" y1="390" x2="196" y2="390" stroke="'+DOS.lgray+'" stroke-width="3"/>' +
+       glyph(122,382,18,DOS.white,'\u2660') + glyph(140,382,18,DOS.lred,'\u2665') +
+       glyph(160,382,18,DOS.lcyan,'\u2666') + glyph(178,382,18,DOS.lgreen,'\u2663'),
+  meaning:'El potencial puro convertido en resultado. Todas las herramientas ya están sobre la mesa: la voluntad, la habilidad y el ingenio solo necesitan apuntar hacia una meta.'
+},
+{ name:'LA SUMA SACERDOTISA', roman:'II', color:DOS.lblue, topLabel:'ARCANOS MAYORES',
+  art: pillar(72,410,180,DOS.dgray) + glyph(72,300,16,DOS.dgray,'B') +
+       pillar(228,410,180,DOS.lgray) + glyph(228,300,16,DOS.lgray,'J') +
+       moonShape(150,150,28,DOS.lcyan) +
+       '<line x1="110" y1="230" x2="110" y2="400" stroke="'+DOS.lblue+'" stroke-width="1.5" stroke-dasharray="4,5"/>' +
+       '<line x1="190" y1="230" x2="190" y2="400" stroke="'+DOS.lblue+'" stroke-width="1.5" stroke-dasharray="4,5"/>' +
+       person(150,320,1.0,DOS.lblue),
+  meaning:'El saber silencioso que habita bajo la superficie. Intuición, conocimiento oculto y el espacio entre lo que se dice y lo que solo se percibe.'
+},
+{ name:'LA EMPERATRIZ', roman:'III', color:DOS.lgreen, topLabel:'ARCANOS MAYORES',
+  art: glyph(150,110,26,DOS.yellow,'\u2726 \u2726 \u2726') +
+       person(150,300,1.1,DOS.lgreen) +
+       glyph(150,258,20,DOS.lred,'\u2665') +
+       '<g>' +
+         '<line x1="90" y1="410" x2="82" y2="360" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+         '<line x1="110" y1="415" x2="104" y2="358" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+         '<line x1="190" y1="415" x2="196" y2="358" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+         '<line x1="210" y1="410" x2="218" y2="360" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+         '<circle cx="82" cy="356" r="4" fill="'+DOS.yellow+'"/>' +
+         '<circle cx="104" cy="354" r="4" fill="'+DOS.yellow+'"/>' +
+         '<circle cx="196" cy="354" r="4" fill="'+DOS.yellow+'"/>' +
+         '<circle cx="218" cy="356" r="4" fill="'+DOS.yellow+'"/>' +
+       '</g>',
+  meaning:'La abundancia hecha materia: crecimiento, cuidado y la pausa fértil antes de que algo esté listo para nacer, ya sea una idea, un proyecto o una vida.'
+},
+{ name:'EL EMPERADOR', roman:'IV', color:DOS.red, topLabel:'ARCANOS MAYORES',
+  art: '<rect x="104" y="330" width="92" height="90" fill="none" stroke="'+DOS.red+'" stroke-width="3"/>' +
+       '<path d="M104,330 Q88,300 104,278" fill="none" stroke="'+DOS.red+'" stroke-width="2.5"/>' +
+       '<path d="M196,330 Q212,300 196,278" fill="none" stroke="'+DOS.red+'" stroke-width="2.5"/>' +
+       '<path d="M136,168 L150,140 L164,168 Z" fill="'+DOS.yellow+'" stroke="'+DOS.yellow+'" stroke-width="2"/>' +
+       person(150,300,1.0,DOS.red) +
+       glyph(190,290,22,DOS.yellow,'\u2625'),
+  meaning:'La estructura que sostiene la línea. Autoridad, disciplina y la mano firme que convierte la ambición en algo capaz de mantenerse en pie.'
+},
+{ name:'EL HIEROFANTE', roman:'V', color:DOS.lgray, topLabel:'ARCANOS MAYORES',
+  art: '<path d="M132,150 L142,120 L150,146 L158,120 L168,150 Z" fill="'+DOS.lgray+'" fill-opacity="0.4" stroke="'+DOS.lgray+'" stroke-width="2"/>' +
+       pillar(66,410,160,DOS.dgray) + pillar(234,410,160,DOS.dgray) +
+       person(150,300,1.05,DOS.lgray) +
+       '<line x1="112" y1="380" x2="136" y2="404" stroke="'+DOS.yellow+'" stroke-width="3"/>' +
+       '<line x1="136" y1="380" x2="112" y2="404" stroke="'+DOS.yellow+'" stroke-width="3"/>' +
+       '<circle cx="112" cy="380" r="4" fill="'+DOS.yellow+'"/><circle cx="136" cy="404" r="4" fill="'+DOS.yellow+'"/>',
+  meaning:'La tradición transmitida y seguida. Creencia compartida, instrucción formal y el consuelo, o la limitación, de una norma ya establecida.'
+},
+{ name:'LOS ENAMORADOS', roman:'VI', color:DOS.lred, topLabel:'ARCANOS MAYORES',
+  art: sunRays(150,88,20,DOS.yellow,8) +
+       person(110,310,0.95,DOS.lblue) + person(190,310,0.95,DOS.lmagenta) +
+       '<line x1="150" y1="230" x2="150" y2="150" stroke="'+DOS.lgreen+'" stroke-width="3"/>' +
+       '<circle cx="150" cy="145" r="16" fill="none" stroke="'+DOS.lgreen+'" stroke-width="2.5"/>' +
+       '<path d="M60,420 L150,300 L240,420 Z" fill="none" stroke="'+DOS.brown+'" stroke-width="2" stroke-dasharray="3,4"/>',
+  meaning:'Una decisión tomada desde el corazón, y la alineación que la sigue. Unión, atracción y los valores que deciden qué camino se toma.'
+},
+{ name:'EL CARRO', roman:'VII', color:DOS.cyan, topLabel:'ARCANOS MAYORES',
+  art: glyph(112,110,20,DOS.lcyan,'\u2726') + glyph(150,96,20,DOS.lcyan,'\u2726') + glyph(188,110,20,DOS.lcyan,'\u2726') +
+       '<rect x="110" y="330" width="80" height="70" fill="none" stroke="'+DOS.cyan+'" stroke-width="3"/>' +
+       '<circle cx="118" cy="410" r="16" fill="none" stroke="'+DOS.lgray+'" stroke-width="3"/>' +
+       '<circle cx="182" cy="410" r="16" fill="none" stroke="'+DOS.lgray+'" stroke-width="3"/>' +
+       '<rect x="80" y="352" width="20" height="20" fill="'+DOS.dgray+'" stroke="'+DOS.white+'"/>' +
+       '<rect x="200" y="352" width="20" height="20" fill="'+DOS.white+'" fill-opacity="0.15" stroke="'+DOS.white+'"/>' +
+       person(150,300,0.95,DOS.cyan),
+  meaning:'La voluntad apuntada en una sola dirección y empujada con fuerza. Victoria a través del enfoque, y la disciplina de mantener dos fuerzas opuestas en el mismo rumbo.'
+},
+{ name:'LA FUERZA', roman:'VIII', color:DOS.yellow, topLabel:'ARCANOS MAYORES',
+  art: glyph(150,120,34,DOS.lmagenta,'\u221E') +
+       person(112,320,0.9,DOS.yellow) +
+       '<circle cx="200" cy="360" r="22" fill="none" stroke="'+DOS.brown+'" stroke-width="3"/>' +
+       '<path d="M178,346 L166,332 M182,338 L172,320 M224,346 L236,332 M220,338 L230,320" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+       '<ellipse cx="200" cy="390" rx="30" ry="16" fill="none" stroke="'+DOS.brown+'" stroke-width="3"/>',
+  meaning:'El poder que persuade en lugar de forzar. Coraje silencioso, paciencia y el tipo de control que nace de la calma y no del dominio.'
+},
+{ name:'EL ERMITAÑO', roman:'IX', color:DOS.lgray, topLabel:'ARCANOS MAYORES',
+  art: '<path d="M40,430 L150,120 L260,430 Z" fill="none" stroke="'+DOS.dgray+'" stroke-width="2"/>' +
+       person(150,320,1.0,DOS.lgray,-8) +
+       '<line x1="176" y1="270" x2="200" y2="330" stroke="'+DOS.lgray+'" stroke-width="3"/>' +
+       '<path d="M188,246 L212,246 L212,270 L188,270 Z" fill="none" stroke="'+DOS.yellow+'" stroke-width="2.5"/>' +
+       glyph(200,264,16,DOS.yellow,'\u2726'),
+  meaning:'Alejarse del ruido para encontrar una respuesta a solas. Introspección, soledad y la pequeña linterna de sabiduría que se lleva hacia adentro.'
+},
+{ name:'LA RUEDA DE LA FORTUNA', roman:'X', color:DOS.brown, topLabel:'ARCANOS MAYORES',
+  art: '<circle cx="150" cy="270" r="80" fill="none" stroke="'+DOS.brown+'" stroke-width="4"/>' +
+       '<circle cx="150" cy="270" r="80" fill="none" stroke="'+DOS.yellow+'" stroke-width="1" stroke-dasharray="2,6"/>' +
+       '<line x1="150" y1="190" x2="150" y2="350" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+       '<line x1="70" y1="270" x2="230" y2="270" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+       '<line x1="94" y1="214" x2="206" y2="326" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+       '<line x1="206" y1="214" x2="94" y2="326" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+       glyph(150,200,15,DOS.yellow,'T') + glyph(220,270,15,DOS.yellow,'A') +
+       glyph(150,342,15,DOS.yellow,'R') + glyph(80,270,15,DOS.yellow,'O') +
+       '<rect x="132" y="176" width="36" height="24" fill="none" stroke="'+DOS.lgray+'" stroke-width="2.5"/>',
+  meaning:'El giro que siempre estuvo por llegar. Ciclos, destino y el recordatorio de que las circunstancias se mueven, sean bienvenidas o no.'
+},
+{ name:'LA JUSTICIA', roman:'XI', color:DOS.lgray, topLabel:'ARCANOS MAYORES',
+  art: glyph(150,120,40,DOS.lgray,'\u2696') +
+       pillar(70,410,150,DOS.dgray) + pillar(230,410,150,DOS.dgray) +
+       person(150,320,1.0,DOS.lgray) +
+       '<line x1="150" y1="260" x2="150" y2="180" stroke="'+DOS.lcyan+'" stroke-width="3"/>' +
+       '<line x1="138" y1="188" x2="162" y2="188" stroke="'+DOS.lcyan+'" stroke-width="3"/>',
+  meaning:'La causa que se encuentra con su consecuencia, medida con equidad. Verdad, responsabilidad y decisiones sopesadas sin titubear.'
+},
+{ name:'EL COLGADO', roman:'XII', color:DOS.lblue, topLabel:'ARCANOS MAYORES',
+  art: '<line x1="80" y1="160" x2="220" y2="160" stroke="'+DOS.brown+'" stroke-width="5"/>' +
+       '<line x1="150" y1="160" x2="150" y2="420" stroke="'+DOS.brown+'" stroke-width="4"/>' +
+       '<circle cx="150" cy="255" r="20" fill="'+DOS.yellow+'" fill-opacity="0.25" stroke="'+DOS.yellow+'" stroke-width="2"/>' +
+       person(150,300,1.0,DOS.lblue,180),
+  meaning:'La suspensión con un propósito. Una nueva mirada que solo se gana soltando la urgencia, el control o la manera habitual de ver las cosas.'
+},
+{ name:'LA MUERTE', roman:'XIII', color:DOS.lgray, topLabel:'ARCANOS MAYORES',
+  art: '<circle cx="150" cy="410" r="20" fill="'+DOS.yellow+'" fill-opacity="0.2" stroke="'+DOS.yellow+'" stroke-width="2"/>' +
+       glyph(150,220,44,DOS.white,'\u2620') +
+       '<line x1="130" y1="250" x2="170" y2="250" stroke="'+DOS.white+'" stroke-width="3"/>' +
+       '<line x1="150" y1="235" x2="150" y2="330" stroke="'+DOS.white+'" stroke-width="3"/>' +
+       '<line x1="120" y1="270" x2="180" y2="290" stroke="'+DOS.white+'" stroke-width="2"/>' +
+       '<line x1="180" y1="270" x2="120" y2="290" stroke="'+DOS.white+'" stroke-width="2"/>' +
+       '<rect x="90" y="360" width="120" height="40" fill="none" stroke="'+DOS.dgray+'" stroke-width="3"/>' +
+       '<path d="M210,340 L240,352 L210,364 Z" fill="'+DOS.dgray+'" stroke="'+DOS.lgray+'"/>' +
+       '<line x1="70" y1="430" x2="100" y2="415" stroke="'+DOS.lred+'" stroke-width="3"/>',
+  meaning:'Un final que despeja el terreno para lo que viene. Transformación, liberación y la incomodidad de cerrar un capítulo que ya ha terminado.'
+},
+{ name:'LA TEMPLANZA', roman:'XIV', color:DOS.lcyan, topLabel:'ARCANOS MAYORES',
+  art: '<path d="M110,220 L150,250 L190,220" fill="none" stroke="'+DOS.lcyan+'" stroke-width="3"/>' +
+       person(150,300,1.0,DOS.lcyan) +
+       '<path d="M96,340 Q86,354 96,368" fill="none" stroke="'+DOS.lcyan+'" stroke-width="2.5"/>' +
+       '<path d="M204,340 Q214,354 204,368" fill="none" stroke="'+DOS.lcyan+'" stroke-width="2.5"/>' +
+       wavyLine(112,352,76,DOS.lblue,7,4) +
+       '<rect x="60" y="418" width="90" height="10" fill="'+DOS.brown+'" fill-opacity="0.5"/>' +
+       wavyLine(150,423,90,DOS.blue,4,5),
+  meaning:'Dos cosas opuestas vertidas una en la otra hasta mezclarse. Equilibrio, paciencia y el arte lento de la moderación.'
+},
+{ name:'EL DIABLO', roman:'XV', color:DOS.red, topLabel:'ARCANOS MAYORES',
+  art: starPath(150,120,26,10,5,DOS.red,0.2) +
+       '<path d="M130,150 L138,130 L144,150" fill="none" stroke="'+DOS.red+'" stroke-width="3"/>' +
+       '<path d="M156,150 L162,130 L170,150" fill="none" stroke="'+DOS.red+'" stroke-width="3"/>' +
+       person(150,300,1.0,DOS.red) +
+       person(96,400,0.5,DOS.dgray) + person(204,400,0.5,DOS.dgray) +
+       '<line x1="106" y1="380" x2="132" y2="330" stroke="'+DOS.dgray+'" stroke-width="2" stroke-dasharray="3,3"/>' +
+       '<line x1="194" y1="380" x2="168" y2="330" stroke="'+DOS.dgray+'" stroke-width="2" stroke-dasharray="3,3"/>',
+  meaning:'Una cadena que podría abrirse, si no fuera tan familiar. Apego, tentación y las formas en que las personas se atan a aquello que las limita.'
+},
+{ name:'LA TORRE', roman:'XVI', color:DOS.lred, topLabel:'ARCANOS MAYORES',
+  art: '<rect x="118" y="180" width="64" height="230" fill="none" stroke="'+DOS.lgray+'" stroke-width="4"/>' +
+       '<rect x="118" y="180" width="16" height="16" fill="'+DOS.lgray+'"/>' +
+       '<rect x="166" y="180" width="16" height="16" fill="'+DOS.lgray+'"/>' +
+       lightning(150,90,220,DOS.yellow) +
+       '<path d="M110,170 L100,150 L124,158 Z" fill="'+DOS.yellow+'" stroke="'+DOS.yellow+'"/>' +
+       '<path d="M138,230 L128,214 L148,214 Z" fill="'+DOS.lred+'" fill-opacity="0.6"/>' +
+       '<path d="M162,300 L152,284 L172,284 Z" fill="'+DOS.lred+'" fill-opacity="0.6"/>' +
+       person(84,440,0.55,DOS.white,40) + person(216,440,0.55,DOS.white,-40),
+  meaning:'Una estructura construida sobre una base falsa, que se derrumba deprisa. Una convulsión repentina, dolorosa en el momento y clarificadora después.'
+},
+{ name:'LA ESTRELLA', roman:'XVII', color:DOS.lcyan, topLabel:'ARCANOS MAYORES',
+  art: starPath(150,120,34,14,8,DOS.yellow,0.3) +
+       starPath(80,150,12,5,5,DOS.lcyan,0.3) + starPath(220,150,12,5,5,DOS.lcyan,0.3) +
+       starPath(60,210,10,4,5,DOS.lcyan,0.3) + starPath(240,210,10,4,5,DOS.lcyan,0.3) +
+       starPath(100,90,10,4,5,DOS.lcyan,0.3) + starPath(200,90,10,4,5,DOS.lcyan,0.3) +
+       starPath(150,60,10,4,5,DOS.lcyan,0.3) +
+       '<ellipse cx="150" cy="420" rx="70" ry="18" fill="none" stroke="'+DOS.lblue+'" stroke-width="2.5"/>' +
+       person(150,330,0.85,DOS.lcyan) +
+       wavyLine(100,398,50,DOS.lblue,5,3) + wavyLine(150,398,50,DOS.lblue,5,3),
+  meaning:'La esperanza silenciosa que regresa después de la tormenta. Sanación, fe en el futuro y la sensación renovada de que las cosas aún pueden salir bien.'
+},
+{ name:'LA LUNA', roman:'XVIII', color:DOS.lblue, topLabel:'ARCANOS MAYORES',
+  art: moonShape(150,110,32,DOS.lgray) +
+       '<circle cx="140" cy="106" r="2.5" fill="'+DOS.black+'"/><circle cx="160" cy="112" r="2.5" fill="'+DOS.black+'"/>' +
+       pillar(70,400,130,DOS.dgray) + pillar(230,400,130,DOS.dgray) +
+       '<path d="M100,380 Q108,360 120,380" fill="none" stroke="'+DOS.lgray+'" stroke-width="2.5"/>' +
+       '<path d="M180,380 Q192,360 200,380" fill="none" stroke="'+DOS.lgray+'" stroke-width="2.5"/>' +
+       wavyLine(80,430,140,DOS.lblue,6,5) +
+       '<path d="M148,428 L156,420 L164,428 L156,436 Z" fill="'+DOS.lred+'" fill-opacity="0.5"/>',
+  meaning:'Un camino iluminado por una luz incierta. Ilusión, ansiedad y el instinto en el que hay que confiar antes de que el panorama sea del todo claro.'
+},
+{ name:'EL SOL', roman:'XIX', color:DOS.yellow, topLabel:'ARCANOS MAYORES',
+  art: sunRays(150,160,48,DOS.yellow,16) +
+       '<circle cx="136" cy="152" r="3" fill="'+DOS.black+'"/><circle cx="164" cy="152" r="3" fill="'+DOS.black+'"/>' +
+       '<path d="M138,172 Q150,182 162,172" fill="none" stroke="'+DOS.black+'" stroke-width="2"/>' +
+       person(150,330,0.85,DOS.white) +
+       '<circle cx="90" cy="420" r="10" fill="none" stroke="'+DOS.lgreen+'" stroke-width="2"/>' +
+       '<circle cx="130" cy="428" r="10" fill="none" stroke="'+DOS.lgreen+'" stroke-width="2"/>' +
+       '<circle cx="170" cy="428" r="10" fill="none" stroke="'+DOS.lgreen+'" stroke-width="2"/>' +
+       '<circle cx="210" cy="420" r="10" fill="none" stroke="'+DOS.lgreen+'" stroke-width="2"/>',
+  meaning:'Calidez, claridad y alegría sencilla. Un éxito que no necesita complicarse, y la confianza de sentirse plenamente visto.'
+},
+{ name:'EL JUICIO', roman:'XX', color:DOS.lmagenta, topLabel:'ARCANOS MAYORES',
+  art: '<circle cx="150" cy="100" r="16" fill="none" stroke="'+DOS.lmagenta+'" stroke-width="2.5"/>' +
+       '<path d="M118,110 L134,96 L134,124 Z" fill="'+DOS.lmagenta+'" fill-opacity="0.4"/>' +
+       '<path d="M182,110 L166,96 L166,124 Z" fill="'+DOS.lmagenta+'" fill-opacity="0.4"/>' +
+       '<line x1="150" y1="128" x2="164" y2="150" stroke="'+DOS.yellow+'" stroke-width="3"/>' +
+       '<circle cx="168" cy="152" r="4" fill="'+DOS.yellow+'"/>' +
+       '<line x1="150" y1="150" x2="90" y2="330" stroke="'+DOS.lmagenta+'" stroke-width="1.5" stroke-dasharray="3,4"/>' +
+       '<line x1="150" y1="150" x2="150" y2="330" stroke="'+DOS.lmagenta+'" stroke-width="1.5" stroke-dasharray="3,4"/>' +
+       '<line x1="150" y1="150" x2="210" y2="330" stroke="'+DOS.lmagenta+'" stroke-width="1.5" stroke-dasharray="3,4"/>' +
+       '<rect x="66" y="392" width="48" height="24" fill="none" stroke="'+DOS.lgray+'" stroke-width="2"/>' +
+       '<rect x="126" y="392" width="48" height="24" fill="none" stroke="'+DOS.lgray+'" stroke-width="2"/>' +
+       '<rect x="186" y="392" width="48" height="24" fill="none" stroke="'+DOS.lgray+'" stroke-width="2"/>' +
+       '<path d="M90,392 L80,362 M90,392 L100,362" stroke="'+DOS.white+'" stroke-width="2.5"/>' +
+       '<path d="M150,392 L140,362 M150,392 L160,362" stroke="'+DOS.white+'" stroke-width="2.5"/>' +
+       '<path d="M210,392 L200,362 M210,392 L220,362" stroke="'+DOS.white+'" stroke-width="2.5"/>',
+  meaning:'Un ajuste de cuentas que llama algo de vuelta a la vida. Reflexión sobre el pasado, un veredicto decisivo y la oportunidad de responder a un último llamado.'
+},
+{ name:'EL MUNDO', roman:'XXI', color:DOS.lgreen, topLabel:'ARCANOS MAYORES',
+  art: '<ellipse cx="150" cy="270" rx="95" ry="140" fill="none" stroke="'+DOS.lgreen+'" stroke-width="3" stroke-dasharray="6,5"/>' +
+       person(150,300,0.9,DOS.white) +
+       '<path d="M70,150 L84,128 L98,150" fill="none" stroke="'+DOS.lgray+'" stroke-width="2.5"/>' +
+       '<circle cx="84" cy="126" r="6" fill="none" stroke="'+DOS.lgray+'" stroke-width="2"/>' +
+       '<path d="M202,150 Q216,132 232,142 Q222,152 232,158 Q216,162 202,150 Z" fill="none" stroke="'+DOS.lgray+'" stroke-width="2"/>' +
+       '<circle cx="84" cy="410" r="10" fill="none" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+       '<path d="M76,402 L70,392 M92,402 L98,392" stroke="'+DOS.brown+'" stroke-width="2.5"/>' +
+       '<circle cx="216" cy="410" r="12" fill="none" stroke="'+DOS.yellow+'" stroke-width="2.5"/>' +
+       '<path d="M202,404 L192,398 M230,404 L240,398 M202,416 L192,422 M230,416 L240,422" stroke="'+DOS.yellow+'" stroke-width="2"/>',
+  meaning:'Culminación. Un ciclo cerrado con todo integrado, y la satisfacción de un largo viaje que llega exactamente a donde debía.'
+}
+];
+
+/* =====================================================================
+   ARCANOS MENORES  (56 cartas, generadas)
+   ===================================================================== */
+var SUITS = [
+  { key:'Bastos', color:DOS.brown, border:DOS.yellow, meaning:'el fuego de la ambición, la voluntad y el impulso creativo' },
+  { key:'Copas', color:DOS.lblue, border:DOS.lcyan, meaning:'el flujo de la emoción, la intuición y la conexión' },
+  { key:'Espadas', color:DOS.white, border:DOS.lgray, meaning:'el filo agudo del pensamiento, el conflicto y la verdad' },
+  { key:'Oros', color:DOS.lgreen, border:DOS.green, meaning:'el terreno sólido de los recursos, el trabajo y el mundo material' }
+];
+
+var RANKS = ['As','2','3','4','5','6','7','8','9','10','Sota','Caballo','Reina','Rey'];
+
+/* Significados propios por carta (palo + número), fieles a la tradición Rider-Waite-Smith.
+   Cada palo tiene su propio carácter: Bastos (fuego/acción), Copas (agua/emoción),
+   Espadas (aire/conflicto y mente) y Oros (tierra/materia) — por eso el mismo número
+   significa cosas distintas según el palo, y ya no comparten una plantilla genérica. */
+var SUIT_MEANINGS = {
+  'Bastos': {
+    'As':'una chispa de inspiración creativa, un impulso nuevo listo para la acción. Energía, iniciativa y el comienzo de un proyecto con verdadero potencial.',
+    '2':'un plan trazado con la mirada puesta en el horizonte. Visión de futuro, planificación y la decisión de expandir el propio territorio.',
+    '3':'el barco zarpa y los primeros resultados empiezan a llegar desde lejos. Expansión, previsión y la espera activa mientras el progreso avanza.',
+    '4':'una celebración ganada, un hogar o un logro que por fin se asienta. Estabilidad festiva, comunidad y armonía compartida.',
+    '5':'voluntades que chocan entre sí sin verdadera malicia de fondo. Competencia, desacuerdo y la fricción de egos midiendo fuerzas.',
+    '6':'el regreso triunfal ante la mirada de todos. Victoria, reconocimiento público y la confianza que da el éxito conseguido.',
+    '7':'mantenerse en pie mientras otros presionan desde abajo. Defensa de la propia posición, coraje y perseverancia frente a la oposición.',
+    '8':'flechas ya en pleno vuelo, nada puede detenerlas ahora. Velocidad, movimiento repentino y noticias que llegan más rápido de lo esperado.',
+    '9':'el último aliento antes de cruzar la meta, con las heridas todavía visibles. Resiliencia, vigilancia y una defensa aprendida a fuerza de golpes.',
+    '10':'una carga pesada, cargada casi hasta el final del camino. Responsabilidad excesiva, agotamiento y el peso del propio éxito.',
+    'Sota':'un mensajero curioso con la mecha ya encendida. Entusiasmo juvenil, ganas de explorar y noticias de un proyecto que recién empieza.',
+    'Caballo':'parte al galope, sin mirar atrás. Impulsividad, espíritu aventurero y una acción audaz que no admite demora.',
+    'Reina':'el fuego que calienta sin quemar, segura de sí misma. Carisma, determinación y una calidez que atrae seguidores.',
+    'Rey':'el líder nato que convierte la visión en imperio. Liderazgo audaz, visión estratégica y autoridad natural.'
+  },
+  'Copas': {
+    'As':'la copa se desborda con un sentimiento nuevo. Amor naciente, apertura emocional y la posibilidad de una conexión profunda.',
+    '2':'dos miradas que se encuentran y se reconocen. Unión, atracción mutua y el nacimiento de una alianza sincera.',
+    '3':'copas alzadas entre amigas que celebran juntas. Amistad, celebración compartida y alegría comunitaria.',
+    '4':'la mirada baja ante una oferta que ya no conmueve. Apatía, introspección y una insatisfacción difícil de nombrar.',
+    '5':'dos copas siguen en pie, aunque solo se vean las que cayeron. Duelo, arrepentimiento y la dificultad de ver lo que todavía queda.',
+    '6':'un recuerdo dulce que regresa desde la infancia. Nostalgia, generosidad y reencuentros con el pasado.',
+    '7':'demasiadas visiones brillantes y ninguna decisión tomada aún. Fantasía, opciones ilusorias y la necesidad de discernir lo real de lo imaginado.',
+    '8':'dar la espalda a lo conocido en busca de algo más hondo. Abandono voluntario, búsqueda espiritual y el valor de irse a tiempo.',
+    '9':'el deseo cumplido y una sonrisa satisfecha. Placer, gratitud y bienestar emocional alcanzado.',
+    '10':'la familia reunida bajo un arcoíris compartido. Plenitud emocional, armonía familiar y una felicidad duradera.',
+    'Sota':'un soñador con una idea tierna entre las manos. Sensibilidad, mensajes del corazón y una imaginación creativa que apenas florece.',
+    'Caballo':'se acerca despacio, ofreciendo una invitación romántica. Propuestas, seducción y una emoción que se mueve con gracia.',
+    'Reina':'quien escucha con el corazón antes que con la mente. Empatía profunda, intuición y cuidado emocional hacia los demás.',
+    'Rey':'la calma que gobierna incluso las mareas más intensas. Madurez emocional, diplomacia y equilibrio entre sentimiento y razón.'
+  },
+  'Espadas': {
+    'As':'un pensamiento cortante que atraviesa toda confusión. Claridad mental repentina, una verdad revelada y el poder de una idea nueva.',
+    '2':'los ojos vendados y dos espadas cruzadas en un equilibrio tenso. Indecisión, un punto muerto y la evitación de una verdad incómoda.',
+    '3':'un corazón atravesado bajo la lluvia. Dolor, ruptura y una pena que exige ser sentida antes de poder sanar.',
+    '4':'una figura en reposo sobre su propia tumba, recuperando fuerzas. Descanso necesario, retiro momentáneo y una tregua antes de continuar la batalla.',
+    '5':'una victoria que deja al vencedor solo en el campo. Conflicto ganado a un costo alto, deshonestidad o una discordia que no valía la pena.',
+    '6':'una barca que se aleja despacio hacia aguas más tranquilas. Transición, dejar atrás la dificultad y un alivio que llega poco a poco.',
+    '7':'alguien se escabulle llevando consigo lo que no le pertenece. Astucia, una estrategia furtiva o una salida que evita la confrontación directa.',
+    '8':'atada y rodeada de espadas, aunque el camino de salida sigue abierto. Sensación de estar atrapada, miedo autoimpuesto y una prisión más mental que real.',
+    '9':'la vigilia nocturna, con la angustia sentada al borde de la cama. Ansiedad, insomnio y pensamientos que se agrandan en la oscuridad.',
+    '10':'el suelo cubierto, el golpe final ya asestado. Un final doloroso pero completo: tocar fondo para por fin poder levantarse.',
+    'Sota':'una mente alerta que vigila cada movimiento a su alrededor. Curiosidad aguda, vigilancia y una comunicación directa, a veces cortante.',
+    'Caballo':'cabalga directo hacia el conflicto, sin frenar. Acción impulsiva, determinación feroz y una prisa que no siempre mide las consecuencias.',
+    'Reina':'percibe la verdad con una claridad que no admite excusas. Franqueza, independencia intelectual y límites trazados sin culpa.',
+    'Rey':'la autoridad que decide con lógica fría y juicio imparcial. La razón por encima de la emoción, disciplina mental y un criterio certero.'
+  },
+  'Oros': {
+    'As':'una semilla dorada plantada en tierra fértil. Una nueva oportunidad material, prosperidad naciente y bases sólidas por construir.',
+    '2':'hacer malabares entre dos prioridades sin dejar caer ninguna. Adaptabilidad, gestión de recursos y equilibrio frente al cambio.',
+    '3':'manos distintas que construyen juntas la misma obra. Colaboración, habilidad reconocida y trabajo en equipo bien hecho.',
+    '4':'sostener con fuerza lo que ya se ha ganado. Seguridad material, control y el riesgo de aferrarse demasiado.',
+    '5':'quedarse afuera, en el frío, mientras la luz brilla adentro. Dificultad económica, sensación de exclusión y una ayuda que está más cerca de lo que parece.',
+    '6':'una balanza que reparte lo justo entre quien tiene y quien necesita. Generosidad, intercambio equilibrado y ayuda recibida o dada con equidad.',
+    '7':'contemplar lo sembrado, evaluando si vale la pena seguir. Paciencia, evaluación del esfuerzo invertido y resultados que todavía maduran.',
+    '8':'horas de práctica repetida hasta que la mano ya no titubea. Dedicación artesanal, aprendizaje constante y orgullo por el oficio bien hecho.',
+    '9':'la cosecha propia, disfrutada en soledad y sin deberle nada a nadie. Autosuficiencia, un lujo merecido e independencia financiera.',
+    '10':'el patrimonio de una familia que se extiende por generaciones. Herencia, abundancia duradera y estabilidad a largo plazo.',
+    'Sota':'un aprendiz con los ojos fijos en una moneda nueva. Curiosidad práctica, oportunidad de estudio y los primeros pasos hacia una meta concreta.',
+    'Caballo':'avanza despacio, pero sin desviarse jamás del camino. Constancia, método y una fiabilidad que no se apresura por nadie.',
+    'Reina':'cultiva la abundancia con las manos en la tierra. Calidez práctica, generosidad y un cuidado que sostiene tanto el hogar como el trabajo.',
+    'Rey':'el imperio construido ladrillo a ladrillo, con paciencia y visión. Éxito material consolidado, generosidad y un liderazgo próspero.'
+  }
+};
+
+function suitGlyph(suitKey, x, y, scale, color){
+  if(suitKey==='Wands'){
+    return '<line x1="'+x+'" y1="'+(y+30*scale)+'" x2="'+x+'" y2="'+(y-30*scale)+'" stroke="'+color+'" stroke-width="'+(4*scale)+'"/>' +
+      '<line x1="'+(x-9*scale)+'" y1="'+(y-24*scale)+'" x2="'+x+'" y2="'+(y-38*scale)+'" stroke="'+color+'" stroke-width="'+(3*scale)+'"/>' +
+      '<line x1="'+(x+9*scale)+'" y1="'+(y-24*scale)+'" x2="'+x+'" y2="'+(y-38*scale)+'" stroke="'+color+'" stroke-width="'+(3*scale)+'"/>';
+  }
+  if(suitKey==='Cups'){
+    return '<path d="M '+(x-14*scale)+','+(y-14*scale)+' Q '+x+','+(y+16*scale)+' '+(x+14*scale)+','+(y-14*scale)+'" fill="none" stroke="'+color+'" stroke-width="'+(3*scale)+'"/>' +
+      '<line x1="'+x+'" y1="'+(y-14*scale)+'" x2="'+x+'" y2="'+(y+22*scale)+'" stroke="'+color+'" stroke-width="'+(3*scale)+'"/>' +
+      '<line x1="'+(x-10*scale)+'" y1="'+(y+22*scale)+'" x2="'+(x+10*scale)+'" y2="'+(y+22*scale)+'" stroke="'+color+'" stroke-width="'+(3*scale)+'"/>';
+  }
+  if(suitKey==='Swords'){
+    return '<line x1="'+x+'" y1="'+(y-30*scale)+'" x2="'+x+'" y2="'+(y+22*scale)+'" stroke="'+color+'" stroke-width="'+(3*scale)+'"/>' +
+      '<line x1="'+(x-12*scale)+'" y1="'+(y-6*scale)+'" x2="'+(x+12*scale)+'" y2="'+(y-6*scale)+'" stroke="'+color+'" stroke-width="'+(3*scale)+'"/>' +
+      '<path d="M '+(x-6*scale)+','+(y+22*scale)+' L '+(x+6*scale)+','+(y+22*scale)+' L '+x+','+(y+32*scale)+' Z" fill="'+color+'"/>';
+  }
+  /* Pentacles */
+  return '<circle cx="'+x+'" cy="'+y+'" r="'+(18*scale)+'" fill="none" stroke="'+color+'" stroke-width="'+(2.5*scale)+'"/>' +
+    starPath(x,y,13*scale,5.5*scale,5,color,0.35);
+}
+
+function pipLayout(n){
+  var cols = n===1 ? 1 : 2;
+  var rows = Math.ceil(n/cols);
+  var positions = [], count = 0;
+  var top = 120, bottom = 410, left = 105, right = 195;
+  for(var r=0;r<rows;r++){
+    var inRow = Math.min(cols, n-count);
+    var rowY = top + (bottom-top) * (r/(Math.max(rows-1,1)));
+    for(var c=0;c<inRow;c++){
+      var rowX = inRow===1 ? 150 : left + (right-left)*(c/(inRow-1));
+      positions.push([rowX, rowY]);
+      count++;
+    }
+  }
+  return positions;
+}
+
+function courtCrown(x, y, color){
+  return '<path d="M '+(x-16)+','+y+' L '+(x-9)+','+(y-18)+' L '+x+','+(y-4)+' L '+(x+9)+','+(y-18)+' L '+(x+16)+','+y+' Z" fill="'+color+'" fill-opacity="0.55" stroke="'+color+'" stroke-width="2"/>';
+}
+
+function generateMinor(suit, rank){
+  var card = { name: rank.toUpperCase()+' DE '+suit.key.toUpperCase(), color: suit.border, topLabel: 'ARCANOS MENORES', roman:'' };
+  var art = '';
+  var isCourt = (rank==='Sota'||rank==='Caballo'||rank==='Reina'||rank==='Rey');
+
+  if(!isCourt){
+    var n = (rank==='As') ? 1 : parseInt(rank,10);
+    var pts = pipLayout(n);
+    for(var i=0;i<pts.length;i++){
+      art += suitGlyph(suit.key, pts[i][0], pts[i][1], 1.0, suit.color);
+    }
+  } else {
+    art += person(150,320,1.05,suit.color);
+    if(rank==='Caballo'){
+      art += '<rect x="112" y="392" width="76" height="22" fill="none" stroke="'+DOS.lgray+'" stroke-width="2.5"/>';
+      art += '<line x1="118" y1="414" x2="112" y2="428" stroke="'+DOS.lgray+'" stroke-width="3"/>';
+      art += '<line x1="182" y1="414" x2="188" y2="428" stroke="'+DOS.lgray+'" stroke-width="3"/>';
+    }
+    if(rank==='Reina'||rank==='Rey'){
+      art += courtCrown(150,215,DOS.yellow);
+    } else if(rank==='Sota'){
+      art += '<path d="M 138,220 L150,206 L162,220" fill="none" stroke="'+DOS.yellow+'" stroke-width="2.5"/>';
+    }
+    art += suitGlyph(suit.key, 196, 300, 0.85, suit.color);
+  }
+
+  card.art = art;
+  card.meaning = SUIT_MEANINGS[suit.key][rank];
+  return card;
+}
+
+var MINORS = [];
+SUITS.forEach(function(suit){
+  RANKS.forEach(function(rank){
+    MINORS.push(generateMinor(suit, rank));
+  });
+});
+
+var DECK = MAJORS.concat(MINORS); /* 78 cartas en total */
+
+/* ---------- Arte del reverso de la carta ---------- */
+function cardBackSVG(){
+  var pattern = '';
+  for(var r=0;r<10;r++){
+    for(var c=0;c<6;c++){
+      var x = 30 + c*40, y = 40 + r*46;
+      var col = ((r+c)%2===0) ? DOS.lblue : DOS.blue;
+      pattern += '<path d="M '+x+','+(y-14)+' L '+(x+14)+','+y+' L '+x+','+(y+14)+' L '+(x-14)+','+y+' Z" fill="none" stroke="'+col+'" stroke-width="2"/>';
+    }
+  }
+  return '<svg viewBox="0 0 300 520" xmlns="http://www.w3.org/2000/svg">' +
+    '<rect x="0" y="0" width="300" height="520" fill="#000"/>' +
+    frame(DOS.lcyan) +
+    pattern +
+    '<rect x="60" y="230" width="180" height="60" fill="#000"/>' +
+    glyph(150,258,20,DOS.lcyan,'T A R O T') +
+    glyph(150,280,14,DOS.lgray,'* BARAJA R.W.S. *') +
+    '</svg>';
+}
+
+/* ---------- Conexión del DOM ---------- */
+var cardEl = document.getElementById('cardEl');
+var backEl = document.getElementById('cardBack');
+var frontEl = document.getElementById('cardFront');
+var statusLine = document.getElementById('statusLine');
+var drawHint = document.getElementById('drawHint');
+var meaningWrap = document.getElementById('meaningWrap');
+var meaningTitle = document.getElementById('meaningTitle');
+var meaningSub = document.getElementById('meaningSub');
+var meaningText = document.getElementById('meaningText');
+var redrawBtn = document.getElementById('redrawBtn');
+
+backEl.innerHTML = cardBackSVG();
+
+var typing = null;
+var drawn = false;
+
+function typeWrite(text, el, done){
+  clearInterval(typing);
+  el.innerHTML = '<span class="caret">&#9608;</span>';
+  var i = 0;
+  typing = setInterval(function(){
+    i++;
+    el.innerHTML = text.slice(0,i) + '<span class="caret">&#9608;</span>';
+    if(i>=text.length){
+      clearInterval(typing);
+      el.innerHTML = text;
+      if(done) done();
+    }
+  }, 18);
+}
+
+function drawCard(){
+  if(typing) clearInterval(typing);
+  var card = DECK[Math.floor(Math.random()*DECK.length)];
+  frontEl.innerHTML = renderSVG(card);
+
+  if(!drawn){
+    cardEl.classList.add('flipped');
+    drawn = true;
+    drawHint.style.display = 'none';
+  } else {
+    /* quick re-flip pulse for redraw */
+    cardEl.style.transition = 'none';
+    cardEl.classList.remove('flipped');
+    void cardEl.offsetWidth;
+    cardEl.style.transition = '';
+    requestAnimationFrame(function(){ cardEl.classList.add('flipped'); });
+  }
+
+  meaningWrap.classList.add('show');
+  meaningTitle.textContent = card.name;
+  meaningSub.textContent = (card.roman ? ('ARCANOS MAYORES ' + card.roman) : 'ARCANOS MENORES') + '  //  AL DERECHO';
+  statusLine.textContent = 'C:\\TAROT> CARTA SACADA: ' + card.name + '_';
+  redrawBtn.disabled = false;
+
+  setTimeout(function(){
+    typeWrite(card.meaning, meaningText);
+  }, 350);
+}
+
+cardEl.addEventListener('click', drawCard);
+cardEl.addEventListener('keydown', function(e){
+  if(e.key==='Enter' || e.key===' '){
+    e.preventDefault();
+    drawCard();
+  }
+});
+redrawBtn.addEventListener('click', drawCard);
+
+})();
+</script>
+</body>
+</html>
