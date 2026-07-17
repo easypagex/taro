@@ -679,22 +679,56 @@ var SUITS = [
 
 var RANKS = ['As','2','3','4','5','6','7','8','9','10','Sota','Caballo','Reina','Rey'];
 
-var RANK_MEANING = {
-  'As':'una chispa nueva de puro potencial, todavía sin moldear por las circunstancias',
-  '2':'un equilibrio alcanzado, o una elección sopesada entre dos caminos',
-  '3':'un crecimiento temprano a través de la colaboración y los primeros resultados visibles',
-  '4':'una pausa construida para la estabilidad, la estructura y la consolidación',
-  '5':'fricción y disrupción que ponen a prueba la determinación',
-  '6':'armonía restaurada a través de la cooperación o la generosidad',
-  '7':'un momento de estrategia, paciencia o silenciosa reevaluación',
-  '8':'un esfuerzo enfocado y repetitivo que avanza con constancia hacia la maestría',
-  '9':'una cercanía a la culminación, sostenida por la resiliencia y la autosuficiencia',
-  '10':'un ciclo completo, para bien o para mal, finalmente realizado',
-  'Sota':'un principiante curioso, todavía aprendiendo lo que esta energía puede hacer',
-  'Caballo':'un movimiento audaz \u2014 persecución, acción, energía lanzada al mundo',
-  'Reina':'una maestría madura e interior, que nutre esta energía desde adentro',
-  'Rey':'una autoridad segura y expansiva \u2014 esta energía plenamente dominada'
-};
+// CORRECCIÓN: Matriz de significados numéricos adaptados a cada palo
+var RANK_MEANINGS_BY_SUIT = {
+  'Bastos': {
+    'As': 'una chispa nueva de pura pasión y potencial creativo dispuesto a encenderse',
+    '2': 'una pausa estratégica para planificar la expansión y el alcance de tus metas',
+    '3': 'el nacimiento de los primeros frutos y la visión clara de nuevos horizontes',
+    '4': 'un momento de celebración, estabilidad comunitaria y bases sólidas',
+    '5': 'una competencia intensa, rivalidad o conflicto de egos que pone a prueba tu fuerza',
+    '6': 'un triunfo público, reconocimiento y el éxito alcanzado tras la batalla',
+    '7': 'una postura defensiva para proteger tus logros frente a las presiones externas',
+    '8': 'un movimiento acelerado, noticias rápidas y proyectos que avanzan sin frenos',
+    '9': 'la resiliencia final, el cansancio acumulado pero la determinación de resistir',
+    '10': 'una carga pesada, el exceso de responsabilidades que amenaza con agotarte'
+  },
+  'Copas': {
+    'As': 'un desbordamiento de amor puro, intuición despierta y sintonía emocional',
+    '2': 'una conexión profunda, romance o una alianza basada en el afecto mutuo',
+    '3': 'la alegría compartida, la amistad, la comunidad y la celebración colectiva',
+    '4': 'la apatía, el aburrimiento y el rechazo a nuevas ofertas por ensimismamiento',
+    '5': 'el duelo por lo perdido, concentrándose en el dolor sin ver lo que aún queda',
+    '6': 'la nostalgia constructiva, los recuerdos del pasado o el regreso a la inocencia',
+    '7': 'un exceso de fantasías, ilusiones y opciones que nublan la elección correcta',
+    '8': 'el abandono voluntario de lo que ya no te nutre para buscar algo más profundo',
+    '9': 'la satisfacción personal, el bienestar emocional y los deseos cumplidos',
+    '10': 'la plenitud familiar, la armonía duradera y la paz en tus relaciones'
+  },
+  'Espadas': {
+    'As': 'una claridad mental fulminante, un avance intelectual o una verdad ineludible',
+    '2': 'un callejón sin salida emocional, una decisión difícil que bloqueas por miedo',
+    '3': 'un dolor profundo en el corazón, una traición o una dolorosa verdad liberadora',
+    '4': 'un descanso forzado, el retiro mental necesario para sanar y recuperarte',
+    '5': 'una victoria vacía donde el conflicto de opiniones deja solo pérdidas y orgullo',
+    '6': 'un viaje mental o físico hacia aguas más tranquilas, dejando atrás la tormenta',
+    '7': 'la estrategia astuta, el sigilo o la necesidad de actuar con extrema precaución',
+    '8': 'un bucle de sobrepensamiento y parálisis dentro de una prisión mental autoimpuesta',
+    '9': 'la ansiedad desmedida, las pesadillas y la angustia generada por tu propia mente',
+    '10': 'el fin absoluto y doloroso de un ciclo, una derrota total que limpia el camino'
+  },
+  'Oros': {
+    'As': 'una oportunidad material tangible, una semilla de abundancia y salud',
+    '2': 'el malabarismo diario de prioridades, recursos o finanzas en constante cambio',
+    '3': 'el trabajo en equipo, la colaboración profesional y el reconocimiento técnico',
+    '4': 'la retención excesiva de recursos, el miedo a la pérdida o la rigidez material',
+    '5': 'la escasez temporal, el sentimiento de exclusión o una crisis material',
+    '6': 'el flujo de la generosidad, el equilibrio entre dar y recibir ayuda',
+    '7': 'la paciencia en la cosecha, evaluando si el esfuerzo da los frutos deseados',
+    '8': 'un esfuerzo enfocado y repetitivo que avanza con constancia hacia la maestría',
+    '9': 'la autosuficiencia, el disfrute de la seguridad material y el éxito en solitario',
+    '10': 'un legado sólido, la estabilidad financiera a largo plazo y la riqueza familiar'
+  },
 
 function suitGlyph(suitKey, x, y, scale, color){
   if(suitKey==='Wands'){
